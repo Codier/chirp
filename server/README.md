@@ -52,11 +52,92 @@ Useful flags:
 | `--engine onnx` | Use the ONNX int8 engine (install first: `uv sync --locked --extra onnx`; fetch with `uv run chirp-server model fetch --engine onnx`) |
 | `--onnx-intra-op-num-threads N` | Parakeet ONNX threads within operators; `0` lets ONNX Runtime choose |
 | `--onnx-inter-op-num-threads N` | Parakeet ONNX threads across operators; only effective with parallel execution |
+| `--engine sensevoice` | Local CPU Mandarin/English recognition; see [SenseVoice](#sensevoice-cpu-backend) |
 | `--precision float16\|bfloat16` | Experiments; see [streaming and finalization](#streaming-and-finalization) |
 | `--streaming incremental` | Upstream cached-context streaming instead of the measured rolling default |
 | `--finalization segments` | Opt-in pause-precommit finalization |
 | `--debug-retain` | Opt into local debug recording — see [Privacy and debugging](#privacy-and-debugging) |
 | `--config /path/to/server.toml` | Config file instead of `~/.config/chirp/server.toml` |
+
+## SenseVoice CPU backend
+
+SenseVoice Small is an optional local backend for Mandarin and English, with automatic language
+detection and Simplified Chinese output for Mandarin in the public fixtures. The default remains
+Parakeet MLX. Existing Mac and Android clients use the same v1 protocol and pairing credentials.
+
+From `server/`, with Python 3.13:
+
+```sh
+python3.13 -m venv .venv
+.venv/bin/python -m pip install '.[sensevoice]'
+.venv/bin/chirp-server model fetch --engine sensevoice
+.venv/bin/chirp-server --engine sensevoice
+```
+
+With an existing uv installation, use `uv sync --locked --extra sensevoice` and
+`uv run chirp-server model fetch --engine sensevoice`, then `uv run chirp-server --engine sensevoice`.
+MLX dependencies install only on macOS. SenseVoice needs neither MLX nor the Parakeet ONNX extra
+on Linux. No system service or network publication is part of this setup.
+
+Model acquisition is explicit. The download selects full-precision `model.onnx` and `tokens.txt`
+from [`csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17`](https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17)
+at revision `2365baeacb507f821a0c8120fcee3d484dba7a07`. It also downloads
+[Silero VAD](https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx),
+verified against SHA-256 `9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6`.
+The recognizer is pinned to sherpa-onnx 1.13.8. Model code is never downloaded or executed.
+The assets occupy about 938 MB in `~/Library/Application Support/Chirp/models/sensevoice-small/`
+on either platform, following the existing model-store convention. Delete that directory to remove
+them. Startup and inference require local files and never fetch missing models.
+`--model-dir` may point to another directory containing all three files.
+
+To save the backend choice in `~/.config/chirp/server.toml`:
+
+```toml
+engine = "sensevoice"
+
+[sensevoice]
+num_threads = 4
+```
+
+`--engine` overrides the saved engine. `--sensevoice-num-threads 2` overrides the thread count,
+which must be an integer from 1 to 256. The Mac model picker continues to manage MLX model choices;
+a saved MLX selection does not supply SenseVoice's model directory.
+`chirp-server --engine sensevoice doctor --quick` checks the optional package and local assets;
+without `--quick`, it also loads and warms the model.
+
+SenseVoice uses Silero VAD pauses to split recordings into phrases. Short phrases share context for
+language detection, and uninterrupted speech is cut at 20 seconds. Original audio is retained for
+the final decode. Previews reuse completed phrase results in chronological order, without matching
+or removing repeated Chinese characters or English words. Previews may revise earlier text and
+do not promise a stable prefix or word timestamps. SenseVoice always uses this preview strategy
+and a full final decode; the Parakeet `--streaming`, `--finalization` and `--precision` switches
+do not change it. Cancel and disconnect discard the session through the existing engine worker.
+Authentication, loopback binding, correction-off and retention-off defaults are unchanged.
+
+Recognition has limits. An unsegmented long mixed-language decode dropped content in an early
+probe; phrase segmentation retained both languages in the public fixture. INT8 made more errors in
+those fixtures, so this backend uses full precision. The Mandarin fixture still has a homophone
+error, and the English/mixed fixtures have word and punctuation errors. Natural language switching
+within one sentence remains insufficiently tested. Pauses shorter than the grouping window may
+keep different languages in one decode; a hard cut during uninterrupted speech can split a word.
+This is not a promise of lossless transcription.
+
+Cached-model WebSocket regressions are opt-in and never download audio or weights:
+
+```sh
+CHIRP_SENSEVOICE_MODEL_DIR=/path/to/sensevoice-small \
+CHIRP_SENSEVOICE_FIXTURES=/path/to/public-fixtures \
+  .venv/bin/python -m pytest -m model tests/test_sensevoice_model.py
+```
+
+The fixture directory must contain `zh.wav` from the pinned model's `test_wavs/zh.wav`, and
+[`jfk.wav`](https://github.com/ggml-org/whisper.cpp/blob/master/samples/jfk.wav).
+Tests check their hashes before using them, send Chinese, English and joined language-switching
+audio at real-time pace through the existing Mac and Android WebSocket messages, and check
+silence and cancellation. Batch/final equality checks transport consistency; separate content
+assertions check Simplified Chinese and English retention. Neither establishes general recognition
+accuracy. These tests use only in-process sockets; a real loopback server should also be checked
+with `tests/client_sim.py` before reporting network timings.
 
 ## Selectable local models
 

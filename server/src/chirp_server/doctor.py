@@ -352,14 +352,61 @@ def check_launchagent(home: Path | None = None) -> Check:
     return Check("launchagent", OK, "not installed (optional; keeps the model warm across reboots)")
 
 
+async def check_sensevoice(model_dir, num_threads, quick):
+    from .engine import EngineWorker
+    from .engine.sensevoice import SenseVoice
+    from .engine.sensevoice_models import discover
+
+    try:
+        discover(model_dir)
+        import sherpa_onnx
+
+        version = sherpa_onnx.__version__
+
+        engine = SenseVoice(model_dir, num_threads)
+    except (ImportError, ValueError):
+        return Check(
+            "sensevoice",
+            FAIL,
+            "optional package, configuration or model files unavailable",
+            "install chirp-server[sensevoice]; run chirp-server model fetch --engine sensevoice",
+        )
+    if quick:
+        return Check(
+            "sensevoice", OK, f"sherpa-onnx {version} and local files found; load skipped (--quick)"
+        )
+    worker = EngineWorker(engine)
+    try:
+        await worker.start()
+        return Check("sensevoice", OK, "loaded and warmed local CPU model")
+    except Exception:
+        return Check("sensevoice", FAIL, "local model load or warm decode failed")
+    finally:
+        await worker.close()
+
+
 def doctor(args, tailscale_status: tuple[int, str] | None = None) -> int:
     """Run every check in order; return 1 only when some check FAILs."""
     settings, config_check = load_settings(args.config)
     model_dir = args.model_dir or settings.model_dir
-    checks = [check_environment(), check_mlx(), check_model(model_dir)]
-    if getattr(args, "quick", False):
-        print("[SKIP] warm decode: skipped (--quick)")
+    sensevoice = (getattr(args, "engine", None) or settings.engine) == "sensevoice"
+    checks = [check_environment()]
+    if sensevoice:
+        threads = getattr(args, "sensevoice_num_threads", None)
+        checks.append(
+            asyncio.run(
+                check_sensevoice(
+                    args.model_dir,
+                    settings.sensevoice_num_threads if threads is None else threads,
+                    getattr(args, "quick", False),
+                )
+            )
+        )
     else:
+        checks.extend([check_mlx(), check_model(model_dir)])
+    if not sensevoice and getattr(args, "quick", False):
+        print("[SKIP] warm decode: skipped (--quick)")
+    elif not sensevoice:
         checks.append(asyncio.run(check_warm_decode(model_dir)))
     checks.extend(
         [

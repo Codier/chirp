@@ -357,7 +357,12 @@ async def make_final(
 def create_app(settings=None, engine=None, token=None, corrector=None):
     settings = settings or Settings.read()
     if engine is None:
-        if settings.engine == "onnx":
+        if settings.engine == "sensevoice":
+            from .engine.sensevoice import SenseVoice
+
+            engine = SenseVoice(settings.model_dir, settings.sensevoice_num_threads)
+            settings.speech_model = "sensevoice-small"
+        elif settings.engine == "onnx":
             from .engine.onnx import ParakeetONNX
 
             engine = ParakeetONNX(

@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 from conftest import HEADERS, PCM, START, TOKEN
-from parakeet_mlx.alignment import AlignedToken
 from starlette.testclient import TestClient
 from test_protocol import final
 
@@ -18,7 +17,8 @@ TIMED = {**START, "word_timings": True}
 
 
 def piece(text, start, duration=0.08, id=0):
-    return AlignedToken(id, text, start, duration)
+    alignment = pytest.importorskip("parakeet_mlx.alignment")
+    return alignment.AlignedToken(id, text, start, duration)
 
 
 def test_pieces_group_into_words_at_sentencepiece_boundaries():

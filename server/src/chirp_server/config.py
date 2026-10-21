@@ -155,6 +155,7 @@ class Settings:
     model_dir: Path | None = None
     speech_model: str = "parakeet-v2"
     engine: str = "mlx"
+    sensevoice_num_threads: int = 4
     precision: str = "float32"
     streaming: str = "rolling"
     finalization: str = "full"
@@ -171,6 +172,8 @@ class Settings:
         path = path or result.config_dir / "server.toml"
         if path.exists():
             data = tomllib.loads(path.read_text())
+            result.engine = data.get("engine", "mlx")
+            result.sensevoice_num_threads = data.get("sensevoice", {}).get("num_threads", 4)
             debug = data.get("debug", {})
             result.debug_retain = debug.get("retain", False)
             result.retain_days = int(debug.get("retain_days", 3))
@@ -178,9 +181,20 @@ class Settings:
             result.onnx = OnnxConfig(**data.get("onnx", {}))
         if result.retain_days < 1 or result.correction.timeout <= 0:
             raise ValueError("Invalid configuration limits")
+        if result.engine not in {"mlx", "onnx", "sensevoice"}:
+            raise ValueError("Invalid speech engine")
+        if (
+            type(result.sensevoice_num_threads) is not int
+            or not 1 <= result.sensevoice_num_threads <= 256
+        ):
+            raise ValueError("SenseVoice num_threads must be an integer between 1 and 256")
         from .model_catalog import apply_settings
 
         apply_settings(result)
+        if result.engine == "sensevoice":
+            # A Mac model-picker selection is an MLX choice, not a SenseVoice path.
+            result.model_dir = None
+            result.speech_model = "sensevoice-small"
         return result
 
 

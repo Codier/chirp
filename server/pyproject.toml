@@ -4,12 +4,13 @@ version = "0.1.0"
 description = "Private local streaming dictation server"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-  "starlette>=1.8.0", "uvicorn[standard]>=0.54.0", "parakeet-mlx>=0.5.3",
-  "mlx>=0.32.4", "numpy>=2.5.4", "httpx>=0.28.1", "segno>=1.6.6",
-  "mlx-lm>=0.31.3",
+  "starlette>=1.8.0", "uvicorn[standard]>=0.54.0", "parakeet-mlx>=0.5.3; sys_platform == 'darwin'",
+  "mlx>=0.32.4; sys_platform == 'darwin'", "numpy>=2.5.4", "httpx>=0.28.1", "segno>=1.6.6",
+  "mlx-lm>=0.31.3; sys_platform == 'darwin'", "huggingface-hub>=1.0",
 ]
 
 [project.optional-dependencies]
+sensevoice = ["sherpa-onnx==1.13.8"]
 onnx = ["onnx-asr>=0.12.0", "onnxruntime>=1.31.0"]
 
 [dependency-groups]

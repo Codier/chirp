@@ -58,7 +58,8 @@ def parser():
     result = argparse.ArgumentParser(description="Private local streaming dictation")
     result.add_argument("--config", type=Path)
     result.add_argument("--model-dir", type=Path)
-    result.add_argument("--engine", choices=["mlx", "onnx"], default="mlx")
+    result.add_argument("--engine", choices=["mlx", "onnx", "sensevoice"], default=None)
+    result.add_argument("--sensevoice-num-threads", type=int, default=None)
     for kind in ("intra", "inter"):
         result.add_argument(
             f"--onnx-{kind}-op-num-threads",
@@ -79,7 +80,7 @@ def parser():
     pair.add_argument("--url", default="http://127.0.0.1:7821")
     model = commands.add_parser("model")
     model.add_argument("action", choices=["fetch"])
-    model.add_argument("--engine", choices=["mlx", "onnx"], default="mlx")
+    model.add_argument("--engine", choices=["mlx", "onnx", "sensevoice"], default="mlx")
     model.add_argument("--cleanup", nargs="?", const="", default=None, metavar="ID")
     debug = commands.add_parser("debug")
     debug.add_argument("action", choices=["purge"])
@@ -143,9 +144,20 @@ def main():
 
         from .app import accept_prefix, create_app
 
+        if args.engine is not None:
+            if settings.engine == "sensevoice" and args.engine != "sensevoice":
+                from .model_catalog import apply_settings
+
+                settings.speech_model = "parakeet-v2"
+                apply_settings(settings)
+            settings.engine = args.engine
+        if settings.engine == "sensevoice":
+            settings.model_dir = None
+            settings.speech_model = "sensevoice-small"
         if args.model_dir is not None:
             settings.model_dir = args.model_dir
-        settings.engine = args.engine
+        if args.sensevoice_num_threads is not None:
+            settings.sensevoice_num_threads = args.sensevoice_num_threads
         settings.precision = args.precision
         settings.streaming = args.streaming
         settings.finalization = args.finalization

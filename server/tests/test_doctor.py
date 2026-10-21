@@ -5,6 +5,7 @@ import json
 import socket
 from types import SimpleNamespace
 
+import pytest
 from conftest import PCM
 
 from chirp_server import doctor
@@ -38,6 +39,7 @@ def test_environment_reports_interpreter():
 
 
 def test_mlx_available():
+    pytest.importorskip("mlx.core")
     assert doctor.check_mlx().status == OK
 
 
@@ -254,6 +256,8 @@ def test_warm_decode_engine_failure(monkeypatch, tmp_path):
 
 def test_doctor_quick_reports_every_check(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(doctor, "check_environment", lambda: Check("environment", OK, "Python"))
+    monkeypatch.setattr(doctor, "check_mlx", lambda: Check("mlx", OK, "available"))
     monkeypatch.setattr(doctor, "check_model", lambda model_dir=None: Check("model", OK, "cached"))
     args = SimpleNamespace(quick=True, config=None, model_dir=None, port=0)
     code = doctor.doctor(args, tailscale_status=(0, "{}"))

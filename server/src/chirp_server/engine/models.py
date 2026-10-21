@@ -49,6 +49,10 @@ def discover(explicit: Path | None = None) -> Path:
 
 
 def fetch(engine: str = "mlx") -> Path:
+    if engine == "sensevoice":
+        from .sensevoice_models import fetch as fetch_sensevoice
+
+        return fetch_sensevoice()
     from huggingface_hub import snapshot_download
 
     directory = model_root() / f"parakeet-{engine}"
