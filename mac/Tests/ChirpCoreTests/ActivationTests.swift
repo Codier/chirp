@@ -155,8 +155,9 @@ private enum Flags {
         #expect(g.chord() == [.hotkeyChord])
     }
 
-    @Test func autoStopToggleOnACleanModifierTap() {
-        var g = HotkeyGesture(mode: .autoStop, modifierOnly: true)
+    @Test(arguments: [ActivationMode.autoStop, .toggle])
+    func toggleOnACleanModifierTap(mode: ActivationMode) {
+        var g = HotkeyGesture(mode: mode, modifierOnly: true)
         #expect(!g.needsArmTimer)
         #expect(g.down(at: 1) == [])
         #expect(g.up(at: 1.2) == [.hotkeyDown(at: 1.2), .hotkeyUp(at: 1.2)])
@@ -180,6 +181,35 @@ private enum Flags {
         var effects: [DictationEffect] = []
         for e in g.up(at: 3.1) { effects += m.handle(e) }
         #expect(effects == [.finalize] && m.state == .finalizing)
+    }
+
+    /// Exercise the same gesture → machine path as the controller, for a key shortcut and a modifier alone.
+    @Test(arguments: [false, true])
+    func toggleRecordingContinuesThroughPausesAndStopsOnce(modifierOnly: Bool) {
+        var g = HotkeyGesture(mode: .toggle, modifierOnly: modifierOnly)
+        var m = DictationMachine(mode: .toggle)
+        var effects: [DictationEffect] = []
+        for e in g.down(at: 0) + g.up(at: 0.1) { effects += m.handle(e) }
+        #expect(effects == [.start] && m.state == .connecting)
+        m.handle(.serverReady)
+        #expect(m.handle(.silence) == [] && m.state == .listening)
+        // Using the modifier in a typing shortcut leaves an already-started recording running.
+        if modifierOnly {
+            for e in g.down(at: 4) + g.chord() + g.up(at: 4.1) { effects += m.handle(e) }
+            #expect(effects == [.start] && m.state == .listening)
+        }
+        #expect(m.handle(.silence) == [] && m.state == .listening)
+        effects = []
+        for e in g.down(at: 20) + g.up(at: 20.1) { effects += m.handle(e) }
+        #expect(effects == [.finalize] && m.state == .finalizing)
+        for e in g.down(at: 21) + g.up(at: 21.1) { #expect(m.handle(e) == []) }
+        #expect(m.handle(.finalReceived) == [.insert])
+        m.handle(.insertionFinished)
+        #expect(m.state == .idle)
+        effects = []
+        for e in g.down(at: 22) + g.up(at: 22.1) { effects += m.handle(e) }
+        #expect(effects == [.start])
+        #expect(m.handle(.escape) == [.cancel] && m.state == .idle)
     }
 }
 
@@ -231,6 +261,9 @@ private enum Flags {
         prefs.autoStopSilence = 3
         let again = Preferences(defaults: defaults)
         #expect(again.activationMode == .holdToTalk && again.autoStopSilence == 3)
+        prefs.activationMode = .toggle
+        #expect(Preferences(defaults: defaults).activationMode == .toggle)
+        #expect(defaults.string(forKey: "activationMode") == "toggle")
         defaults.set("bogus", forKey: "activationMode")
         prefs.autoStopSilence = .infinity
         #expect(prefs.activationMode == .autoStop && prefs.autoStopSilence == AutoStopDetector.defaultSilence)
@@ -258,13 +291,18 @@ private enum Flags {
         s.activationMode = .holdToTalk
         s.autoStopSilence = 3
         let form = SettingsForm(s)
-        #expect(form.mode.itemTitles == ["Auto-stop", "Hold to talk"])
+        #expect(form.mode.itemTitles == ["Auto-stop", "Hold to talk", "Toggle recording"])
         #expect(form.mode.titleOfSelectedItem == "Hold to talk" && !form.silence.isEnabled)
         #expect(form.silence.selectedItem?.representedObject as? Double == 3)
         #expect(form.hotkey.titleOfSelectedItem == "⌥ Option")
         #expect(form.hotkeyHelp.stringValue.contains("⌥←"))
         form.showMode(.autoStop, silence: 1.4)
         #expect(form.silence.isEnabled && form.silence.selectedItem?.representedObject as? Double == 1.5)
+        s.activationMode = .toggle
+        form.apply(s, full: true)
+        #expect(form.mode.titleOfSelectedItem == "Toggle recording" && !form.silence.isEnabled)
+        #expect(form.mode.selectedItem?.representedObject as? String == "toggle")
+        #expect(form.silence.selectedItem?.representedObject as? Double == 3)
     }
 
     @Test func theMenuSaysWhenTheHotkeyWaitsForAccessibility() {
@@ -273,6 +311,8 @@ private enum Flags {
         m.hotkey = .option
         m.activationMode = .holdToTalk
         #expect(MenuContent.statusLine(m).text == "Ready · hold ⌥ Option")
+        m.activationMode = .toggle
+        #expect(MenuContent.statusLine(m).text == "Ready · ⌥ Option")
         m.hotkeyRegistered = false
         m.accessibilityGranted = false
         #expect(MenuContent.statusLine(m).text == "Ready · hotkey needs Accessibility")

@@ -21,11 +21,14 @@ public enum ActivationMode: String, CaseIterable, Sendable {
     case autoStop = "auto-stop"
     /// Talk while the hotkey is held; letting go finishes.
     case holdToTalk = "hold"
+    /// Press once to start and again to finish, without stopping on pauses.
+    case toggle = "toggle"
 
     public var title: String {
         switch self {
         case .autoStop: "Auto-stop"
         case .holdToTalk: "Hold to talk"
+        case .toggle: "Toggle recording"
         }
     }
 
@@ -34,6 +37,7 @@ public enum ActivationMode: String, CaseIterable, Sendable {
         switch self {
         case .autoStop: "Press once and talk. Chirp stops when you pause, or when you press again."
         case .holdToTalk: "Hold the hotkey while you talk; let go to finish."
+        case .toggle: "Press the hotkey once to start recording and again to stop. Pauses do not stop recording."
         }
     }
 }
@@ -43,7 +47,7 @@ public enum DictationEvent: Sendable, Equatable {
     case hotkeyUp(at: TimeInterval)
     /// The hotkey, a modifier on its own, was part of another shortcut (⌥←): a dictation it just started is dropped.
     case hotkeyChord
-    /// "Start/Stop Dictation" in the menu: starts a dictation, or finishes the one under way, in either mode.
+    /// "Start/Stop Dictation" in the menu: starts a dictation, or finishes the one under way, in any mode.
     case toggle
     /// Auto-stop: the speaker paused long enough, or never spoke.
     case silence
@@ -73,8 +77,8 @@ public enum DictationEffect: Sendable, Equatable {
 }
 
 /// Pure state machine: idle → connecting → listening → finalizing → [correcting →] inserting → idle (+ error).
-/// Auto-stop: a press starts, the next press or `silence` finishes. Hold to talk: the release finishes; a press shorter
-/// than `tapThreshold` was not meant as dictation and is dropped with a hint.
+/// Toggle: a press starts, the next press finishes. Auto-stop also finishes on `silence`. Hold to talk: the release
+/// finishes; a press shorter than `tapThreshold` was not meant as dictation and is dropped with a hint.
 public struct DictationMachine: Sendable {
     public static let tapThreshold: TimeInterval = 0.3
     public static let holdHint = "Hold the hotkey while you talk"
@@ -113,7 +117,7 @@ public struct DictationMachine: Sendable {
         case (.connecting, .hotkeyUp(let t)), (.listening, .hotkeyUp(let t)):
             guard let start = pressStart else { return [] }
             pressStart = nil
-            guard mode == .holdToTalk else { return [] }      // auto-stop: the release means nothing
+            guard mode == .holdToTalk else { return [] }      // auto-stop and toggle ignore releases
             if t - start < Self.tapThreshold {
                 state = .error(Self.holdHint)
                 return [.abort(Self.holdHint)]

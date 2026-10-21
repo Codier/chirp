@@ -2,11 +2,11 @@ import Foundation
 
 /// Turns the hotkey's raw presses into `DictationMachine` events for the chosen mode. A key shortcut passes straight
 /// through. A modifier on its own (⌥) is also part of every ⌥← and ⌥-click, so it only counts when used alone: in
-/// hold-to-talk it starts once it has been held alone for `armDelay`, and in auto-stop a quick clean tap toggles.
+/// hold-to-talk it starts once it has been held alone for `armDelay`, and in auto-stop or toggle a quick clean tap toggles.
 public struct HotkeyGesture: Sendable {
     /// Hold-to-talk with a modifier: how long it must be held alone before the dictation starts.
     public static let armDelay: TimeInterval = 0.2
-    /// Auto-stop with a modifier: a longer press is someone holding ⌥ for something else.
+    /// Auto-stop or toggle with a modifier: a longer press is someone holding ⌥ for something else.
     public static let tapLimit: TimeInterval = 0.5
 
     public let mode: ActivationMode
@@ -43,7 +43,7 @@ public struct HotkeyGesture: Sendable {
         guard let start = pressedAt else { return [] }
         switch mode {
         case .holdToTalk: return armed ? [.hotkeyUp(at: t)] : []
-        case .autoStop: return t - start <= Self.tapLimit ? [.hotkeyDown(at: t), .hotkeyUp(at: t)] : []
+        case .autoStop, .toggle: return t - start <= Self.tapLimit ? [.hotkeyDown(at: t), .hotkeyUp(at: t)] : []
         }
     }
 

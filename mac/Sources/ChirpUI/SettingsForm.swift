@@ -101,7 +101,7 @@ public final class SettingsForm {
     public let recorder = HotkeyRecorder()
     /// Under the hotkey: how it works, or why the last recording was refused.
     public let hotkeyHelp = SettingsForm.help("")
-    /// Auto-stop or hold to talk, and (auto-stop only) how long a pause ends the dictation.
+    /// The activation mode, and (auto-stop only) how long a pause ends the dictation.
     public let mode = NSPopUpButton(frame: .zero, pullsDown: false)
     public let silence = NSPopUpButton(frame: .zero, pullsDown: false)
     private let modeHelp = SettingsForm.help("")

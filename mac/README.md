@@ -68,7 +68,8 @@ The Mac mini has no built-in microphone. Chirp follows the system default input 
 - **Mode** (Settings → General):
   - **Auto-stop** (default): press once and talk; Chirp stops after a pause (1–5 s of quiet, 2 s by default, judged against the room's noise floor) or when you press again. With nothing said it stops after 10 s.
   - **Hold to talk**: hold the hotkey while you talk, let go to finish. A press shorter than 300 ms is dropped with a "Hold the hotkey while you talk" hint.
-- A modifier on its own only counts when used alone: with another key or a click (⌥←, ⌥-click) it does nothing, and a dictation that press started is dropped. Hold to talk starts once it has been held alone for 200 ms; auto-stop takes a clean tap under 0.5 s.
+  - **Toggle recording**: press the hotkey once to start recording and again to stop. Pauses do not stop recording. The existing 120-second limit and microphone/connection safety checks still apply.
+- A modifier on its own only counts when used alone: with another key or a click (⌥←, ⌥-click) it does nothing, and a dictation that press started is dropped. Hold to talk starts once it has been held alone for 200 ms; auto-stop and toggle take a clean tap under 0.5 s.
 - **Esc** cancels: the server discards the audio and nothing is inserted. Esc is only captured while a dictation is active.
 
 The shortcut recorder (AppKit, no macros, no Input Monitoring) refuses combinations that cannot fire or would break typing, says why, and keeps listening. Refused: a typing key with no modifier or with ⇧ alone, ⇧ on its own, ⌃Space alone (Raycast's default and the input-source switcher), Esc, and a few system shortcuts (⌘Space, ⌘Tab, ⌘Q). Recording a single right-hand modifier keeps that side only (Right ⌥). Esc, or a click elsewhere, gives up. While it listens, the live hotkey is released so pressing it does not start a dictation. A stored custom shortcut is validated again on load.
@@ -213,7 +214,7 @@ Settings is a native preferences window with toolbar tabs (`NSTabViewController`
 
 | Tab | Contents |
 |---|---|
-| General | Hotkey (presets and Record Shortcut…), Mode (Auto-stop or Hold to talk) and the auto-stop pause, Launch at login, Set Up Chirp… |
+| General | Hotkey (presets and Record Shortcut…), Mode (Auto-stop, Hold to talk or Toggle recording) and the auto-stop pause, Launch at login, Set Up Chirp… |
 | Sounds | Cues on/off, pack with ▶ previews, volume, the Custom pack's start and stop files |
 | Clean-up | Clean up dictated text, Keep clean-up model loaded, the default style, the per-style prompt editor, per-app styles with Test, Insert raw immediately, Show changes after clean-up, Offer Use raw for 5 seconds |
 | Server | URL, token location, status, Manage Local Models…, Copy Doctor Command |
