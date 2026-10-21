@@ -167,9 +167,12 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         form.offerRaw.action = #selector(toggleOfferRaw(_:))
         form.hotkey.target = self
         form.hotkey.action = #selector(hotkeyChanged(_:))
+        form.keyboardSettingsButton.target = self
+        form.keyboardSettingsButton.action = #selector(openKeyboardSettings)
         form.recorder.onCapture = { [weak self] combo in
             settings.hotkey = combo
             self?.form?.fillHotkeyMenu(selecting: combo)
+            self?.tabSizeChanged()
             self?.onHotkeyChange?()
         }
         form.recorder.onRecordingChanged = { [weak self] recording in self?.onRecordingChanged?(recording) }
@@ -232,6 +235,9 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
 
     @objc private func openSetup() { onOpenSetup?() }
     @objc private func openModels() { onOpenModels?() }
+    @objc private func openKeyboardSettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
+    }
     @objc private func removeSpeakerModel() { onRemoveSpeakerModel?() }
 
     /// The speaker model came or went: refresh the General tab's row.
@@ -248,6 +254,8 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
 
     @objc private func hotkeyChanged(_ sender: NSPopUpButton) {
         settings.hotkey = KeyCombo.resolve(id: sender.selectedItem?.representedObject as? String)
+        form?.fillHotkeyMenu(selecting: settings.hotkey)
+        tabSizeChanged()
         onHotkeyChange?()
     }
 

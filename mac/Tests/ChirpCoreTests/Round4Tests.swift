@@ -191,6 +191,34 @@ import Testing
         form.fillHotkeyMenu(selecting: .controlShiftSpace)
         #expect(form.hotkey.itemTitles == KeyCombo.presets.map(\.title) && form.hotkey.titleOfSelectedItem == "⌃⇧Space")
     }
+
+    @Test func fnSetupAppearsForRecordedAndRestoredFnAndHidesForOtherShortcuts() {
+        // The recorder stores an any-side modifier; older custom shortcuts can store the physical Fn key.
+        let recorded = HotkeyRecording.modifierOnlyOutcome(modifiers: ModifierKeys.fn, lastKey: UInt16(kVK_Function))
+        guard case .accepted(let fn) = recorded else { Issue.record("Fn was not accepted"); return }
+        for combo in [fn, .custom(keyCode: UInt32(kVK_Function), modifiers: ModifierKeys.fn)] {
+            var state = SettingsState()
+            state.hotkey = KeyCombo.resolve(id: combo.id)
+            let form = SettingsForm(state)
+            #expect(!form.keyboardSettingsButton.isHiddenOrHasHiddenAncestor)
+            #expect(form.fnKeyHelp.stringValue.contains("Do Nothing"))
+            let fnHeight = form.fittingSize(for: .general).height
+
+            form.recorder.start()
+            form.recorder.apply(.rejected(.shiftAlone))
+            #expect(form.hotkeyHelp.stringValue == HotKeyValidation.Rejection.shiftAlone.reason)
+            form.recorder.stop()
+
+            for other in [KeyCombo.controlOptionSpace, .option,
+                          .custom(keyCode: KeyCombo.anyModifierKey, modifiers: ModifierKeys.fn | UInt32(cmdKey))] {
+                form.fillHotkeyMenu(selecting: other)
+                #expect(form.keyboardSettingsButton.isHiddenOrHasHiddenAncestor)
+                #expect(form.fittingSize(for: .general).height < fnHeight)
+            }
+            form.fillHotkeyMenu(selecting: fn)
+            #expect(!form.keyboardSettingsButton.isHiddenOrHasHiddenAncestor)
+        }
+    }
 }
 
 // MARK: sounds

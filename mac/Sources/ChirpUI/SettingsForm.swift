@@ -101,6 +101,10 @@ public final class SettingsForm {
     public let recorder = HotkeyRecorder()
     /// Under the hotkey: how it works, or why the last recording was refused.
     public let hotkeyHelp = SettingsForm.help("")
+    /// Fn/Globe has a separate macOS action that the user must turn off in Keyboard settings.
+    public let fnKeyHelp = SettingsForm.help("To use fn / 🌐 without opening emoji or another macOS action, open System Settings → Keyboard and set “Press 🌐 key to” to “Do Nothing”.")
+    public let keyboardSettingsButton = NSButton(title: "Open Keyboard Settings…", target: nil, action: nil)
+    private var fnKeySetupRow: NSGridRow?
     /// Auto-stop or hold to talk, and (auto-stop only) how long a pause ends the dictation.
     public let mode = NSPopUpButton(frame: .zero, pullsDown: false)
     public let silence = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -182,6 +186,8 @@ public final class SettingsForm {
 
         for button in [setupButton, doctorButton, modelsButton, removeSpeakerModel] { button.bezelStyle = .rounded }
         setupButton.setAccessibilityLabel("Set up Chirp")
+        keyboardSettingsButton.bezelStyle = .rounded
+        keyboardSettingsButton.controlSize = .small
 
         func row(_ title: String, _ control: NSView, help: NSTextField? = nil) -> [NSView] {
             var content = control
@@ -198,8 +204,13 @@ public final class SettingsForm {
         let hotkeyRow = NSStackView(views: [hotkey, recorder])
         hotkeyRow.orientation = .horizontal
         hotkeyRow.spacing = 10
+        let fnKeySetup = NSStackView(views: [fnKeyHelp, keyboardSettingsButton])
+        fnKeySetup.orientation = .vertical
+        fnKeySetup.alignment = .leading
+        fnKeySetup.spacing = 4
         build(.general, [
             row("Hotkey:", hotkeyRow, help: hotkeyHelp),
+            row("", fnKeySetup),
             row("Mode:", mode, help: modeHelp),
             row("Auto-stop:", silence),
             row("Overlay:", wordWaveform, help: Self.help("Draws each word's audio above it as you speak, so you can see what was heard.")),
@@ -207,6 +218,7 @@ public final class SettingsForm {
             row("Setup:", setupButton, help: Self.help("Check the permissions and the server, and try a dictation.")),
             row("Speakers:", removeSpeakerModel),
         ])
+        fnKeySetupRow = grids[.general]?.row(at: 1)
 
         let packRow = NSStackView(views: [soundPack, previewStart, previewStop])
         packRow.orientation = .horizontal
@@ -494,6 +506,7 @@ public final class SettingsForm {
     }
 
     private func refreshHotkeyHelp() {
+        fnKeySetupRow?.isHidden = !(shownHotkey.isModifierOnly && shownHotkey.modifiers == ModifierKeys.fn)
         hotkeyHelp.textColor = .secondaryLabelColor
         switch recorder.status {
         case .idle:
