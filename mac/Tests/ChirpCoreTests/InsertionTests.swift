@@ -52,6 +52,22 @@ final class FakeSystem {
         }
     }
 
+    /// Chromium hosts can accept AXSelectedText without updating the editor. Start with paste so an
+    /// accepted but unverified AX write cannot strand a finished dictation on the clipboard.
+    @Test func egoLitePastesWithoutAttemptingAX() async {
+        let sys = FakeSystem(), board = FakePasteboard()
+        sys.bundle = "com.citrolabs.ego.lite"
+        sys.ax = .unverified
+        let inserter = sys.inserter(board: board)
+        #expect(!inserter.canReplaceInPlace())
+        #expect(await inserter.insert("finished dictation") == .inserted(.paste))
+        #expect(sys.calls == ["paste"])
+        #expect(board.text == "finished dictation")
+        #expect(board.lastWriteTransient == true)
+        await inserter.settle()
+        #expect(board.text == "user clipboard")
+    }
+
     // MARK: AX
 
     @Test func verifiedAXLeavesPasteboardAlone() async {
