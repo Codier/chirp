@@ -239,7 +239,7 @@ with your normal concurrent workloads before keeping a setting.
 
 Chirp passes these values through the supported `onnx_asr.load_model(sess_options=...)`
 interface. Execution mode and spinning policy keep their existing defaults. ONNX Runtime
-uses sequential execution by default, where `inter_op_num_threads` has no effect. This PR
+uses sequential execution by default, where `inter_op_num_threads` has no effect. Chirp
 does not enable parallel execution. See [ONNX Runtime thread management](https://onnxruntime.ai/docs/performance/tune-performance/threading.html).
 
 ## Clean-up
