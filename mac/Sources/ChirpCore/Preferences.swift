@@ -21,7 +21,7 @@ public final class Preferences: @unchecked Sendable {
         set { defaults.set(newValue.id, forKey: "hotkey") }
     }
     #endif
-    /// Auto-stop (the default) or hold to talk. An unknown stored value falls back to auto-stop.
+    /// Auto-stop (the default), hold to talk, or toggle. An unknown stored value falls back to auto-stop.
     public var activationMode: ActivationMode {
         get { defaults.string(forKey: "activationMode").flatMap(ActivationMode.init(rawValue:)) ?? .autoStop }
         set { defaults.set(newValue.rawValue, forKey: "activationMode") }

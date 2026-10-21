@@ -173,6 +173,7 @@ public final class OnboardingView: NSView {
             switch mode {
             case .autoStop: ("waveform", "Click the box, press \(hotkey.title) and say something. Chirp stops when you pause.")
             case .holdToTalk: ("waveform", "Click the box, hold \(hotkey.title) and say something, then let go.")
+            case .toggle: ("waveform", "Click the box, press \(hotkey.title) and say something. Press it again to stop recording.")
             }
         }
     }

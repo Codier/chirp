@@ -2,8 +2,9 @@ import Testing
 @testable import ChirpCore
 
 @Suite struct DictationMachineTests {
-    @Test func tapTogglesOnAndOff() {
-        var m = DictationMachine()
+    @Test(arguments: [ActivationMode.autoStop, .toggle])
+    func tapTogglesOnAndOff(mode: ActivationMode) {
+        var m = DictationMachine(mode: mode)
         #expect(m.handle(.hotkeyDown(at: 0)) == [.start])
         #expect(m.state == .connecting)
         #expect(m.handle(.hotkeyUp(at: 0.1)) == [])          // short press: keep recording
@@ -30,6 +31,23 @@ import Testing
         m.handle(.serverReady)
         #expect(m.handle(.hotkeyUp(at: 12)) == [])
         #expect(m.state == .listening)
+    }
+
+    @Test func toggleIgnoresRepeatAndReleaseAndCanStopBeforeServerReady() {
+        var m = DictationMachine(mode: .toggle)
+        #expect(m.handle(.hotkeyDown(at: 0)) == [.start])
+        #expect(m.handle(.hotkeyDown(at: 0.05)) == [])
+        #expect(m.handle(.hotkeyUp(at: 2)) == [] && m.state == .connecting)
+        #expect(m.handle(.hotkeyDown(at: 3)) == [.finalize])
+        #expect(m.handle(.serverReady) == [] && m.state == .finalizing)
+        #expect(m.handle(.finalReceived) == [.insert])
+    }
+
+    @Test func toggleStillAbortsOnMicrophoneOrConnectionFailure() {
+        var m = DictationMachine(mode: .toggle)
+        m.handle(.hotkeyDown(at: 0)); m.handle(.hotkeyUp(at: 0.1)); m.handle(.serverReady)
+        #expect(m.handle(.failed("No microphone signal")) == [.abort("No microphone signal")])
+        #expect(m.handle(.hotkeyDown(at: 5)) == [.start])
     }
 
     @Test func holdReleasedBeforeServerReadyStillFinalizes() {
@@ -77,8 +95,8 @@ import Testing
         #expect(auto.state == .connecting)
     }
 
-    /// The menu's Start/Stop works the same in both modes and never counts as a too-short hold.
-    @Test func menuToggleStartsAndStopsInBothModes() {
+    /// The menu's Start/Stop works the same in all modes and never counts as a too-short hold.
+    @Test func menuToggleStartsAndStopsInAllModes() {
         for mode in ActivationMode.allCases {
             var m = DictationMachine(mode: mode)
             #expect(m.handle(.toggle) == [.start])
