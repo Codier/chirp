@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from chirp_server.config import OnnxConfig
+
 from .mlx import RollingStream
 from .models import model_root
 from .stitch import stitch_transcript
@@ -10,9 +12,17 @@ from .stitch import stitch_transcript
 class ParakeetONNX:
     name = "parakeet-onnx:tdt-0.6b-v2-int8"
 
-    def __init__(self, model_dir=None, finalization="full"):
+    def __init__(
+        self,
+        model_dir=None,
+        finalization="full",
+        *,
+        intra_op_num_threads=None,
+        inter_op_num_threads=None,
+    ):
         self.model_dir = model_dir
         self.finalization = finalization
+        self.onnx = OnnxConfig(intra_op_num_threads, inter_op_num_threads)
 
     def load(self):
         import onnx_asr
@@ -27,11 +37,24 @@ class ParakeetONNX:
         )
         if directory is None:
             raise ValueError("ONNX model missing; run chirp-server model fetch --engine onnx")
+        options = {}
+        if any(
+            value is not None
+            for value in (self.onnx.intra_op_num_threads, self.onnx.inter_op_num_threads)
+        ):
+            import onnxruntime
+
+            session_options = onnxruntime.SessionOptions()
+            for name in ("intra_op_num_threads", "inter_op_num_threads"):
+                if (value := getattr(self.onnx, name)) is not None:
+                    setattr(session_options, name, value)
+            options["sess_options"] = session_options
         self.model = onnx_asr.load_model(
             "nemo-conformer-tdt",
             path=directory,
             quantization="int8",
             providers=["CPUExecutionProvider"],
+            **options,
         )
 
     def warm(self):

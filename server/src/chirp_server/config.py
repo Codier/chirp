@@ -132,6 +132,18 @@ def persist_keep_loaded(path: Path, value: bool) -> None:
 
 
 @dataclass
+class OnnxConfig:
+    intra_op_num_threads: int | None = None
+    inter_op_num_threads: int | None = None
+
+    def __post_init__(self):
+        for name in ("intra_op_num_threads", "inter_op_num_threads"):
+            value = getattr(self, name)
+            if value is not None and (type(value) is not int or not 0 <= value <= 2**31 - 1):
+                raise ValueError(f"ONNX {name} must be an integer between 0 and 2147483647")
+
+
+@dataclass
 class Settings:
     config_dir: Path = field(default_factory=lambda: Path.home() / ".config/chirp")
     debug_dir: Path = field(
@@ -146,6 +158,7 @@ class Settings:
     precision: str = "float32"
     streaming: str = "rolling"
     finalization: str = "full"
+    onnx: OnnxConfig = field(default_factory=OnnxConfig)
     correction: CorrectionConfig = field(default_factory=CorrectionConfig)
     idle_seconds: float = 60.0
     auth_seconds: float = 5.0
@@ -162,6 +175,7 @@ class Settings:
             result.debug_retain = debug.get("retain", False)
             result.retain_days = int(debug.get("retain_days", 3))
             result.correction = CorrectionConfig(**data.get("correction", {}))
+            result.onnx = OnnxConfig(**data.get("onnx", {}))
         if result.retain_days < 1 or result.correction.timeout <= 0:
             raise ValueError("Invalid configuration limits")
         from .model_catalog import apply_settings

@@ -360,7 +360,12 @@ def create_app(settings=None, engine=None, token=None, corrector=None):
         if settings.engine == "onnx":
             from .engine.onnx import ParakeetONNX
 
-            engine = ParakeetONNX(settings.model_dir, settings.finalization)
+            engine = ParakeetONNX(
+                settings.model_dir,
+                settings.finalization,
+                intra_op_num_threads=settings.onnx.intra_op_num_threads,
+                inter_op_num_threads=settings.onnx.inter_op_num_threads,
+            )
         else:
             from .engine.mlx import ParakeetMLX
 

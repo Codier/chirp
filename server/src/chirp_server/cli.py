@@ -6,6 +6,7 @@ import os
 import plistlib
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
@@ -13,6 +14,13 @@ from .config import Settings, load_token
 from .retention import Retention
 
 LABEL = "dev.chirp.server"
+
+
+def onnx_thread_count(value):
+    value = int(value)
+    if not 0 <= value <= 2**31 - 1:
+        raise argparse.ArgumentTypeError("must be an integer between 0 and 2147483647")
+    return value
 
 
 def service(action, arguments=()):
@@ -51,6 +59,13 @@ def parser():
     result.add_argument("--config", type=Path)
     result.add_argument("--model-dir", type=Path)
     result.add_argument("--engine", choices=["mlx", "onnx"], default="mlx")
+    for kind in ("intra", "inter"):
+        result.add_argument(
+            f"--onnx-{kind}-op-num-threads",
+            type=onnx_thread_count,
+            default=None,
+            help=f"Parakeet ONNX {kind}-op threads: 0=automatic; omitted=use config/default",
+        )
     result.add_argument(
         "--precision", choices=["float32", "float16", "bfloat16"], default="float32"
     )
@@ -134,6 +149,14 @@ def main():
         settings.precision = args.precision
         settings.streaming = args.streaming
         settings.finalization = args.finalization
+        settings.onnx = replace(
+            settings.onnx,
+            **{
+                f"{kind}_op_num_threads": value
+                for kind in ("intra", "inter")
+                if (value := getattr(args, f"onnx_{kind}_op_num_threads")) is not None
+            },
+        )
         settings.debug_retain |= args.debug_retain
         logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
         # httpx logs can contain endpoint queries/credentials; library logs are not diagnostics.

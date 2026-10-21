@@ -50,6 +50,8 @@ Useful flags:
 | `--root-path /chirp` | Serves `/chirp/v1/...` **and** `/v1/...`, so Tailscale Serve may strip the mount point or not |
 | `--model-dir /path/to/model` | Use this model directory instead of the cache/store |
 | `--engine onnx` | Use the ONNX int8 engine (install first: `uv sync --locked --extra onnx`; fetch with `uv run chirp-server model fetch --engine onnx`) |
+| `--onnx-intra-op-num-threads N` | Parakeet ONNX threads within operators; `0` lets ONNX Runtime choose |
+| `--onnx-inter-op-num-threads N` | Parakeet ONNX threads across operators; only effective with parallel execution |
 | `--precision float16\|bfloat16` | Experiments; see [streaming and finalization](#streaming-and-finalization) |
 | `--streaming incremental` | Upstream cached-context streaming instead of the measured rolling default |
 | `--finalization segments` | Opt-in pause-precommit finalization |
@@ -204,6 +206,41 @@ retain_days = 3
 | `keep_loaded` | Keep the managed helper resident; see [keep_loaded](#keep_loaded) |
 
 API keys come from the named environment variable or Keychain — never from the TOML file, and they are used only by endpoint mode.
+
+### Parakeet ONNX CPU threads
+
+For `--engine onnx`, you can tune CPU inference in `server.toml`:
+
+```toml
+[onnx]
+intra_op_num_threads = 4
+inter_op_num_threads = 1
+```
+
+Or set each value on the server command line:
+
+```sh
+uv run chirp-server --engine onnx --onnx-intra-op-num-threads 4 --onnx-inter-op-num-threads 1
+```
+
+Both keys are optional. Leaving them unset preserves the existing ONNX Runtime behavior,
+without passing custom session options. Each value must be an integer from `0` to
+`2147483647`; `0` asks ONNX Runtime to choose automatically. Booleans, strings, fractional
+and negative values are rejected. An explicit CLI value overrides that key in TOML,
+including `0`; omitting a flag keeps the configured value. These settings only affect
+Parakeet ONNX and take effect after restarting the server. They do not select the engine.
+
+The example is a starting point for measurement, not a default for all CPUs. An earlier
+INT8 experiment on a shared six-core Intel Core i5-8500T measured a 7.435-second clip at
+557 ms and a 30.435-second clip at 2120 ms with intra-op `4` and inter-op `1`, compared
+with 1144–1568 ms and 4873–5313 ms using automatic thread selection. Those are prototype
+measurements on that host, not a benchmark of this implementation. Measure your own clips
+with your normal concurrent workloads before keeping a setting.
+
+Chirp passes these values through the supported `onnx_asr.load_model(sess_options=...)`
+interface. Execution mode and spinning policy keep their existing defaults. ONNX Runtime
+uses sequential execution by default, where `inter_op_num_threads` has no effect. This PR
+does not enable parallel execution. See [ONNX Runtime thread management](https://onnxruntime.ai/docs/performance/tune-performance/threading.html).
 
 ## Clean-up
 
