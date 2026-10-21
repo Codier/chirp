@@ -258,6 +258,17 @@ def emit_catalog(settings):
 def run(action, model, config, port, choice=None, repository=None):
     try:
         settings = Settings.read(config)
+        if settings.engine == "sensevoice" and (
+            action == "start" or (action == "select" and model == "speech")
+        ):
+            emit(
+                "error",
+                model=model,
+                message="SenseVoice is configured. Start it with chirp-server directly. "
+                "Mac local speech selection and setup start manage MLX; "
+                'set engine = "mlx" to use them.',
+            )
+            return 1
         if action == "status":
             emit(
                 "status",

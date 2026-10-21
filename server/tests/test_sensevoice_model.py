@@ -3,6 +3,8 @@
 import hashlib
 import os
 import re
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -26,7 +28,17 @@ def assets():
         pytest.skip(
             "set CHIRP_SENSEVOICE_MODEL_DIR and CHIRP_SENSEVOICE_FIXTURES for cached public assets"
         )
-    pytest.importorskip("sherpa_onnx")
+    # Explicitly supplied model assets mean this backend must work. An inherited
+    # native-library override must not hide an incomplete optional installation.
+    environment = {
+        k: v for k, v in os.environ.items() if k not in {"LD_LIBRARY_PATH", "LD_PRELOAD"}
+    }
+    subprocess.run(
+        [sys.executable, "-I", "-c", "import sherpa_onnx"],
+        env=environment,
+        check=True,
+        capture_output=True,
+    )
     paths = [Path(fixtures) / name for name in ("zh.wav", "jfk.wav")]
     expected = [
         "b77f1794fe374a0ba1ee1dc458bfaf9349496cbbfc32780c50ba3c5a7ad8e373",

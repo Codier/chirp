@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-sensevoice = ["sherpa-onnx==1.13.8"]
+sensevoice = ["sherpa-onnx==1.13.8", "sherpa-onnx-core==1.13.8"]
 onnx = ["onnx-asr>=0.12.0", "onnxruntime>=1.31.0"]
 
 [dependency-groups]

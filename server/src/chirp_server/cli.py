@@ -80,7 +80,7 @@ def parser():
     pair.add_argument("--url", default="http://127.0.0.1:7821")
     model = commands.add_parser("model")
     model.add_argument("action", choices=["fetch"])
-    model.add_argument("--engine", choices=["mlx", "onnx", "sensevoice"], default="mlx")
+    model.add_argument("--engine", choices=["mlx", "onnx", "sensevoice"], default=argparse.SUPPRESS)
     model.add_argument("--cleanup", nargs="?", const="", default=None, metavar="ID")
     debug = commands.add_parser("debug")
     debug.add_argument("action", choices=["purge"])
@@ -132,7 +132,7 @@ def main():
         else:
             from .engine.models import fetch
 
-            print(fetch(args.engine))
+            print(fetch(args.engine or "mlx"))
     elif args.command == "debug":
         print(f"Purged {Retention(settings).purge(all_files=True)} debug files")
     elif args.command == "service":

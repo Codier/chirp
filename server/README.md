@@ -100,8 +100,11 @@ num_threads = 4
 ```
 
 `--engine` overrides the saved engine. `--sensevoice-num-threads 2` overrides the thread count,
-which must be an integer from 1 to 256. The Mac model picker continues to manage MLX model choices;
-a saved MLX selection does not supply SenseVoice's model directory.
+which must be an integer from 1 to 256. The Mac model picker manages MLX choices. While SenseVoice
+is configured, speech selection and `setup start` report a clear message directing you to start
+`chirp-server` directly;
+set `engine = "mlx"` to use the Mac helper again. A saved MLX selection does not supply
+SenseVoice's model directory.
 `chirp-server --engine sensevoice doctor --quick` checks the optional package and local assets;
 without `--quick`, it also loads and warms the model.
 
@@ -120,7 +123,7 @@ those fixtures, so this backend uses full precision. The Mandarin fixture still 
 error, and the English/mixed fixtures have word and punctuation errors. Natural language switching
 within one sentence remains insufficiently tested. Pauses shorter than the grouping window may
 keep different languages in one decode; a hard cut during uninterrupted speech can split a word.
-This is not a promise of lossless transcription.
+Very quiet or very short speech can be missed by VAD. This is not a promise of lossless transcription.
 
 Cached-model WebSocket regressions are opt-in and never download audio or weights:
 
